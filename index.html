@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>তোর জন্য সারপ্রাইজ!</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Galada&family=Hind+Siliguri:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: #fff0f5;
+            font-family: 'Hind Siliguri', sans-serif;
+            overflow: hidden; 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            
+            /* ✨ SMOOTH START */
+            opacity: 0; 
+            transition: opacity 2s ease-in;
+        }
+        body.loaded { opacity: 1; }
+
+        /* --- BALLOON BACKGROUND --- */
+        #balloon-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; overflow: hidden; pointer-events: none;
+        }
+        .balloon {
+            position: absolute; bottom: -100px;
+            width: 60px; height: 75px;
+            background: rgba(255, 107, 107, 0.5);
+            border-radius: 50%;
+            animation: floatUp 10s infinite linear;
+        }
+        .balloon::before {
+            content: ''; position: absolute; bottom: -12px; left: 50%;
+            width: 2px; height: 35px; background: rgba(0,0,0,0.1);
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            100% { transform: translateY(-110vh) rotate(20deg); opacity: 0; }
+        }
+
+        /* --- CONTENT --- */
+        .header {
+            text-align: center; margin-bottom: 30px;
+            transition: opacity 0.5s ease; z-index: 10;
+        }
+        h1 {
+            font-family: 'Galada', cursive;
+            font-size: 3rem; color: #ff6b6b; line-height: 1.2;
+        }
+        
+        /* Message Card Area */
+        .message-box {
+            background: #fff; padding: 20px 30px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 85%; width: 350px; min-height: 120px;
+            display: flex; align-items: center; justify-content: center;
+            text-align: center; margin-bottom: 50px;
+            transform: scale(0.9); opacity: 0;
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 600; color: #444; font-size: 1.3rem; z-index: 10;
+        }
+        .message-box.show { transform: scale(1); opacity: 1; }
+
+        /* Final Photo Reveal */
+        .hidden-photo {
+            width: 250px; height: 250px; object-fit: cover;
+            border-radius: 15px; border: 5px solid #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px; z-index: 10;
+            
+            /* Hidden initially */
+            opacity: 0; display: none; 
+            transition: opacity 2s ease;
+        }
+        .hidden-photo.visible { opacity: 1; }
+
+        /* --- GIFT BOX --- */
+        .gift-wrapper {
+            position: relative; cursor: pointer;
+            transition: opacity 0.5s ease; z-index: 10;
+        }
+        .gift-wrapper:active { transform: scale(0.9); }
+        
+        .gift-emoji {
+            font-size: 6rem;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2));
+            animation: bounce 2s infinite;
+        }
+        
+        .click-hint {
+            position: absolute; bottom: -40px; left: 50%;
+            transform: translateX(-50%);
+            font-size: 1rem; color: #666;
+            white-space: nowrap; font-weight: 600;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        /* Utility for fading out elements */
+        .fade-out { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body onload="document.body.classList.add('loaded')">
+
+    <div id="balloon-container"></div>
+
+    <audio id="bg-music" loop src="bg-music.mp3"></audio>
+    
+    <audio id="finish-sfx" src="finish.mp3"></audio>
+
+    <div class="header" id="main-header">
+        <h1>শুভ জন্মদিন! 🎂</h1>
+        <p style="color: #666; font-size: 1.1rem;">গিফট বক্সটা খোল...</p>
+    </div>
+
+    <img src="hero.png" class="hidden-photo" id="final-img" alt="Best Friends">
+
+    <div class="message-box" id="msg-box"></div>
+
+    <div class="gift-wrapper" id="gift-section" onclick="handleClick()">
+        <div class="gift-emoji" id="gift-icon">🎁</div>
+        <div class="click-hint" id="hint">একটা ক্লিক কর!</div>
+    </div>
+
+    <script>
+        // --- BALLOON SETUP ---
+        const colors = ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff', '#bdb2ff', '#ffc6ff'];
+        const container = document.getElementById('balloon-container');
+
+        for (let i = 0; i < 20; i++) {
+            let b = document.createElement('div');
+            b.className = 'balloon';
+            b.style.left = Math.random() * 100 + 'vw';
+            b.style.background = colors[Math.floor(Math.random() * colors.length)];
+            b.style.animationDuration = (Math.random() * 10 + 8) + 's';
+            b.style.animationDelay = (Math.random() * 5) + 's';
+            container.appendChild(b);
+        }
+
+        // --- USER MESSAGES ---
+        const messages = [
+            "এতো জোরে টিপলে হবে না 🤨",
+            "আস্তে করে চাপ দে 😌",
+            "এই তো হচ্ছে... আরেকবার 💪",
+            "চব্বিশ বছর হয়ে গেল তাহলে!",
+            "মানুষকে তো পঁচিশ বলে বেড়াবি...",
+            "যাইহোক, অনেক বড় হয়ে গেলি 😤",
+            "শুভকামনা তোর জন্য 🥱",
+            "বেশি দ্রুত ক্লিক করা হয়ে যাচ্ছে 🍕",
+            "ওহ তোর সময়ের তো আবার অনেক দাম! 🫣",
+            "গিফট হিসেবে অনেক দোয়া 😓✨"
+        ];
+
+        let clickCount = 0;
+        const msgBox = document.getElementById('msg-box');
+        const giftIcon = document.getElementById('gift-icon');
+        const hint = document.getElementById('hint');
+        const header = document.getElementById('main-header');
+        const finalImg = document.getElementById('final-img');
+        const giftSection = document.getElementById('gift-section');
+        
+        // Audio
+        const bgMusic = document.getElementById('bg-music');
+        const finishSfx = document.getElementById('finish-sfx');
+
+
+        // ✨ AUDIO FADE IN LOGIC
+        function playAudioFadeIn() {
+            bgMusic.volume = 0; 
+            bgMusic.play().catch(e => console.log("Interaction needed"));
+            
+            let vol = 0;
+            let interval = setInterval(() => {
+                if (vol < 1.0) {
+                    vol += 0.05;
+                    bgMusic.volume = Math.min(vol, 1.0);
+                } else {
+                    clearInterval(interval);
+                }
+            }, 200);
+        }
+
+        function handleClick() {
+            // First Click: Start BG Music Fade In
+            if (clickCount === 0) {
+                playAudioFadeIn();
+            }
+
+            if (clickCount < 10) {
+                // Show Message
+                msgBox.innerText = messages[clickCount];
+                msgBox.classList.add('show');
+                
+                // Shake Animation
+                giftIcon.style.animation = 'none';
+                setTimeout(() => giftIcon.style.animation = 'bounce 0.5s', 10);
+
+                clickCount++;
+                hint.innerText = "আর মাত্র " + (10 - clickCount) + " বার...";
+            } 
+            
+            // 10th Click: FINISH LOGIC
+            if (clickCount === 10) {
+                // Stop BG Music
+                bgMusic.pause();
+                bgMusic.currentTime = 0;
+
+                // Play Finish SFX
+                finishSfx.volume = 1.0;
+                finishSfx.play().catch(e => console.log("SFX error", e));
+
+                finishGameSmoothly();
+            }
+        }
+
+        function finishGameSmoothly() {
+            // Fade out UI
+            header.classList.add('fade-out');
+            giftSection.classList.add('fade-out');
+            
+            setTimeout(() => {
+                header.style.display = 'none';
+                giftSection.style.display = 'none';
+                
+                // Show Photo Container
+                finalImg.style.display = 'block';
+
+                // Fade In Photo
+                setTimeout(() => {
+                    finalImg.classList.add('visible');
+                    
+                    // Trigger Confetti
+                    confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+                    
+                    // Loop Confetti
+                    let end = Date.now() + 3000;
+                    (function frame() {
+                        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+                        confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+                        if (Date.now() < end) requestAnimationFrame(frame);
+                    }());
+
+                }, 100);
+
+            }, 500); // Wait 0.5s for fade out
+
+            // Prevent further clicks
+            clickCount++; 
+        }
+    </script>
+</body>
+</html>
